@@ -95,6 +95,27 @@ const getAllPosts = async (req, res) => {
 
 const getPost = async (req, res) => {
   try {
+    const postId = req.params.id;
+    const cacheKey = `post:${postId}`;
+    const cachedPosts = await req.redisClient.get(cacheKey);
+    if (cachedPosts) {
+      return res.status(200).json(JSON.parse(cachedPosts));
+    }
+
+    const singlePost = await Post.findById(postId);
+    if (!singlePost) {
+      return res.status(404).json({
+        success: false,
+        message: `Post Not found!`,
+      });
+    }
+    await req.redisClient.setex(cachedPosts, 3600, JSON.stringify(singlePost));
+
+    return res.status(200).json({
+      success: true,
+      message: `Single Post featched Successfully`,
+      data: singlePost,
+    });
   } catch (error) {
     logger.error("Error while Getting Post", error);
     res.status(500).json({
@@ -106,6 +127,22 @@ const getPost = async (req, res) => {
 
 const deletePost = async (req, res) => {
   try {
+    const post = await Post.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user.userId,
+    });
+    if (!post) {
+      return res.status(404).json({
+        success: false,
+        message: `Post Not found!`,
+      });
+    }
+    await invalidatePostCache(req, req.params.id);
+
+    res.status(200).json({
+      success: true,
+      message: `Post deleted Successfully`,
+    });
   } catch (error) {
     logger.error("Error while Delete Post", error);
     res.status(500).json({
