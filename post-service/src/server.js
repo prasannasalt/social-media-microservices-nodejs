@@ -9,6 +9,7 @@ const errorHandler = require("./middleware/errorHandler");
 const logger = require("./utils/logger");
 const { rateLimit } = require("express-rate-limit");
 const { RedisStore } = require("rate-limit-redis");
+const { connectToRabbitMQ } = require("./utils/rabbitmq");
 
 const app = express();
 const PORT = process.env.PORT || 3002;
@@ -62,9 +63,23 @@ app.use(
 // Error Handler
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-  logger.info(`Post Service Running on port ${PORT}`);
-});
+async function startServer() {
+  try {
+    await connectToRabbitMQ()
+    app.listen(PORT,()=>{
+      logger.info(`POST Service running on port ${PORT}`)
+    })
+  } catch (error) {
+    logger.error(`Failed to connect Rabbit Mq`, error)
+    process.exit(1) 
+  }
+}
+
+startServer()
+
+// app.listen(PORT, () => {
+//   logger.info(`Post Service Running on port ${PORT}`);
+// });
 
 // Unhandled promise rejection
 process.on("unhabdledRejection", (reason, promise) => {

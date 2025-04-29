@@ -16,19 +16,19 @@
 //     logger.info("Connected to Rabbit Mq");
 //     return channel;
 //   } catch (error) {
-//     logger.error("Error while connecting Rabbit MQ in Post", error);
+//     logger.error("Error while connecting Rabbit MQ", error);
 //   }
 // }
 
 // async function publishEvent(routingKey, message) {
-//     if (!channel) {
-//         try {
-//           await connectToRabbitMQ();
-//         } catch (error) {
-//           logger.error("Cannot consume event, RabbitMQ not connected", error);
-//           return;
-//         }
-//       }
+//   if (!channel) {
+//     try {
+//       await connectToRabbitMQ();
+//     } catch (error) {
+//       logger.error("Cannot publish event, RabbitMQ not connected", error);
+//       return;
+//     }
+//   }
 //   channel.publish(
 //     EXCHANGE_NAME,
 //     routingKey,
@@ -37,8 +37,28 @@
 //   logger.info(`Event Published: ${routingKey}`);
 // }
 
-// module.exports = { connectToRabbitMQ, publishEvent };
+// async function consumeEvent(routingKey, callback) {
+//   if (!channel) {
+//     try {
+//       await connectToRabbitMQ();
+//     } catch (error) {
+//       logger.error("Cannot consume event, RabbitMQ not connected");
+//       return;
+//     }
+//   }
+//   const q = await channel.assertQueue("", { exclusive: true });
+//   await channel.bindQueue(q.queue, EXCHANGE_NAME, routingKey);
+//   channel.consume(q.queue, (msg) => {
+//     if (msg !== null) {
+//       const content = JSON.parse(msg.content.toString());
+//       callback(content);
+//       channel.ack(msg);
+//     }
+//   });
+//   logger.info(`Subscribed to Event: ${routingKey}`);
+// }
 
+// module.exports = { connectToRabbitMQ, publishEvent, consumeEvent };
 const amqp = require("amqplib");
 const logger = require("./logger");
 require("dotenv").config();
@@ -78,7 +98,7 @@ async function connectToRabbitMQ() {
       channel = await connection.createChannel();
       await channel.assertExchange(EXCHANGE_NAME, "topic", { durable: false });
 
-      logger.info("Connected to RabbitMQ successfully ✅");
+      logger.info("Connected to RabbitMQ successfully");
       break;
     } catch (error) {
       logger.error("Error connecting to RabbitMQ. Retrying in 5s...", error);
